@@ -11,7 +11,6 @@ public class Lane : MonoBehaviour
     public GameObject notePrefab;
     List<Note> notes = new List<Note>();
     public List<double> timeStamps = new List<double>();
-
     public float noteSpawnLeftX;
     public float noteSpawnRightX;
 
@@ -34,22 +33,14 @@ public class Lane : MonoBehaviour
     {
         if (spawnIndex < timeStamps.Count)
         {
-            if (SongManager.GetAudioSourceTime() >= timeStamps[spawnIndex] - SongManager.Instance.noteTime)
+            double noteSpawnTime = timeStamps[spawnIndex] - SongManager.Instance.noteTime;
+            if (SongManager.GetAudioSourceTime() >= noteSpawnTime)
             {
                 var note = Instantiate(notePrefab, transform);
                 notes.Add(note.GetComponent<Note>());
-                note.GetComponent<Notes>().assignedTime = (float)timeStamps[spawnIndex];
+                note.GetComponent<Note>().assignedTime = (float)timeStamps[spawnIndex];
 
-                float spawnX;
-                if (spawnIndex % 2 == 0)
-                {
-                    spawnX = SongManager.Instance.noteSpawnLeftX;
-                }
-                else
-                {
-                    spawnX = SongManager.Instance.noteSpawnRightX;
-                }
-
+                float spawnX = (spawnIndex % 2 == 0) ? noteSpawnLeftX : noteSpawnRightX;
                 note.transform.position = new Vector3(spawnX, SongManager.Instance.noteSpawnY, transform.position.z);
 
                 spawnIndex++;
@@ -62,13 +53,21 @@ public class Lane : MonoBehaviour
             double marginOfError = SongManager.Instance.marginOfError;
             double audioTime = SongManager.GetAudioSourceTime() - (SongManager.Instance.inputDelay / 1000.0);
 
+            if (audioTime >= timeStamp + marginOfError)
+            {
+                Miss();
+                print($"Missed {inputIndex} note");
+                Destroy(notes[inputIndex].gameObject);
+                inputIndex++;
+            }
+
             if (Input.GetKeyDown(input))
             {
                 if (Math.Abs(audioTime - timeStamp) < marginOfError)
                 {
                     Hit();
                     print($"Hit on {inputIndex} note");
-                    Destroy(gameObject);
+                    Destroy(notes[inputIndex].gameObject);
                     inputIndex++;
                 }
                 else
@@ -76,15 +75,10 @@ public class Lane : MonoBehaviour
                     print($"Hit inaccurate on {inputIndex} note with {Math.Abs(audioTime - timeStamp)} delay");
                 }
             }
-            if (timeStamp + marginOfError <= audioTime)
-            {
-                Miss();
-                print($"Missed {inputIndex} note");
-                inputIndex++;
-            }
         }
-
     }
+
+
     private void Hit()
     {
         ScoreManager.Hit();
